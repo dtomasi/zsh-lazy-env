@@ -27,9 +27,31 @@ zsh demo.zsh
 
 ### Installation
 
+#### With Zinit (Recommended)
 ```bash
 # Add to your ~/.zshrc
 zinit load "dtomasi/zsh-lazy-env"
+
+# Or with Git URL (for private repo access)
+zinit load "https://github.com/dtomasi/zsh-lazy-env.git"
+```
+
+#### Manual Installation
+```bash
+# Clone the repository
+git clone https://github.com/dtomasi/zsh-lazy-env.git ~/.local/share/zsh-lazy-env
+
+# Add to your ~/.zshrc
+source ~/.local/share/zsh-lazy-env/lazy-env.plugin.zsh
+```
+
+#### With Oh My Zsh
+```bash
+# Clone to custom plugins directory
+git clone https://github.com/dtomasi/zsh-lazy-env.git ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-lazy-env
+
+# Add to plugins in ~/.zshrc
+plugins=(... zsh-lazy-env)
 ```
 
 ### Basic Setup

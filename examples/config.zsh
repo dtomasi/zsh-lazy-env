@@ -4,6 +4,13 @@
 # Load the plugin with zinit
 zinit load "dtomasi/zsh-lazy-env"
 
+# Or with Git URL (for private repo access)
+# zinit load "https://github.com/dtomasi/zsh-lazy-env.git"
+
+# Manual installation alternative:
+# git clone https://github.com/dtomasi/zsh-lazy-env.git ~/.local/share/zsh-lazy-env
+# source ~/.local/share/zsh-lazy-env/lazy-env.plugin.zsh
+
 # ============================================================================
 # Global Variables (Fallback Definitions)
 # ============================================================================

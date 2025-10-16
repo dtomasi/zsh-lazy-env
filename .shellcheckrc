@@ -1,0 +1,58 @@
+# Shellcheck configuration for zsh-lazy-env
+# This file defines which shellcheck warnings to ignore for zsh-specific syntax
+
+# Shell type - we're checking bash-compatible syntax but allow zsh extensions
+shell=bash
+
+# Disable warnings for common zsh-specific patterns that shellcheck doesn't understand
+
+# SC1009: The mentioned syntax error was in this for loop
+disable=SC1009
+
+# SC1036: '(' is invalid here (zsh glob qualifiers like (N))
+disable=SC1036
+
+# SC1058: Expected 'do' (zsh-specific syntax)
+disable=SC1058
+
+# SC1072: Expected 'do' (zsh-specific syntax)
+disable=SC1072
+
+# SC1073: Couldn't parse this for loop (zsh-specific syntax)
+disable=SC1073
+
+# SC1090: ShellCheck can't follow non-constant source
+disable=SC1090
+
+# SC1091: Not following sourced files
+disable=SC1091
+
+# SC2004: $/${} is unnecessary on arithmetic variables (zsh allows it)
+disable=SC2004
+
+# SC2034: Variable appears unused (many test variables are used indirectly)
+disable=SC2034
+
+# SC2035: Use ./* so names with dashes won't become options (zsh handles this)
+disable=SC2035
+
+# SC2086: Double quote to prevent globbing (intentional in some zsh patterns)
+disable=SC2086
+
+# SC2088: Tilde does not expand in quotes (acceptable in test contexts)
+disable=SC2088
+
+# SC2154: Variable is referenced but not assigned (zsh magic variables)
+disable=SC2154
+
+# SC2155: Declare and assign separately (common zsh pattern)
+disable=SC2155
+
+# SC2164: Use 'cd ... || exit' (test scripts handle this differently)
+disable=SC2164
+
+# SC2168: 'local' is only valid in functions (zsh allows it globally in scripts)
+disable=SC2168
+
+# SC2296: Parameter expansions can't start with ( (zsh-specific expansions like ${(P)var})
+disable=SC2296

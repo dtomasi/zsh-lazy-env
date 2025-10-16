@@ -864,6 +864,7 @@ lazy_load_configs() {
 	# Process each pattern
 	for pattern in "$@"; do
 		# Expand glob pattern
+		# shellcheck disable=SC2086,SC2035
 		for config_file in ${~pattern}(N); do
 			if [[ -r "$config_file" && -f "$config_file" ]]; then
 				source "$config_file"

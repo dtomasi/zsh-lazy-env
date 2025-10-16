@@ -1,6 +1,6 @@
 # Makefile for zsh-lazy-env
 
-.PHONY: test test-verbose test-parallel test-core test-integration test-all clean help lint demo install
+.PHONY: test test-verbose test-parallel test-core test-integration test-all clean help lint demo install hermit-status
 
 # Default target
 all: test
@@ -42,9 +42,13 @@ test-all:
 # Run linting
 lint:
 	@echo "Running shellcheck on plugin..."
-	@shellcheck -s bash -e SC1091,SC2034,SC2154 lazy-env.plugin.zsh || true
+	@./bin/shellcheck lazy-env.plugin.zsh
 	@echo "Running shellcheck on tests..."
-	@find tests/ -name "*.zsh" -exec shellcheck -s bash -e SC1091,SC2034,SC2154 {} \; || true
+	@for file in tests/*.zsh; do \
+		echo "Checking $$file..."; \
+		timeout 30s ./bin/shellcheck "$$file" || echo "Warning: shellcheck failed or timed out for $$file"; \
+	done
+	@echo "Shellcheck completed"
 
 # Run interactive demo
 demo:
@@ -66,17 +70,30 @@ clean:
 
 # Install plugin locally (for development)
 install:
-	@echo "Installing plugin to ~/.config/zsh/plugins/zsh-lazy-env/..."
-	@mkdir -p ~/.config/zsh/plugins/zsh-lazy-env
-	@cp lazy-env.plugin.zsh ~/.config/zsh/plugins/zsh-lazy-env/
-	@cp -r examples ~/.config/zsh/plugins/zsh-lazy-env/
+	@echo "Installing plugin to ~/.local/share/zsh-lazy-env/..."
+	@mkdir -p ~/.local/share/zsh-lazy-env
+	@cp lazy-env.plugin.zsh ~/.local/share/zsh-lazy-env/
+	@cp -r examples ~/.local/share/zsh-lazy-env/
 	@echo "Add this to your ~/.zshrc:"
-	@echo "source ~/.config/zsh/plugins/zsh-lazy-env/lazy-env.plugin.zsh"
+	@echo "source ~/.local/share/zsh-lazy-env/lazy-env.plugin.zsh"
+
+# Install from GitHub (production)
+install-from-git:
+	@echo "Cloning from GitHub..."
+	@git clone https://github.com/dtomasi/zsh-lazy-env.git ~/.local/share/zsh-lazy-env
+	@echo "Add this to your ~/.zshrc:"
+	@echo "source ~/.local/share/zsh-lazy-env/lazy-env.plugin.zsh"
+	@echo "Or with zinit: zinit load 'dtomasi/zsh-lazy-env'"
 
 # Check plugin is working
 check:
 	@echo "Checking plugin functionality..."
-	@zsh -c "source lazy-env.plugin.zsh; lazy_var 'TEST' 'echo test-value'; lazy_load 'TEST'; echo 'Plugin check: \$$TEST = '\$$TEST"
+	@./bin/activate-hermit && zsh -c "source lazy-env.plugin.zsh; lazy_var 'TEST' 'echo test-value'; lazy_load 'TEST'; echo 'Plugin check: \$$TEST = '\$$TEST"
+
+# Show hermit tools
+hermit-status:
+	@echo "Hermit tools status:"
+	@./bin/hermit status
 
 # Show help
 help:
@@ -88,9 +105,11 @@ help:
 	@echo "  test-integration - Run integration tests only"
 	@echo "  test-all      - Run all test categories individually"
 	@echo "  test-manual   - Run manual command loading test"
-	@echo "  lint          - Run shellcheck linting"
+	@echo "  lint          - Run shellcheck linting (uses hermit)"
 	@echo "  demo          - Run interactive demo"
 	@echo "  clean         - Clean test artifacts"
 	@echo "  install       - Install plugin locally for development"
+	@echo "  install-from-git - Install from GitHub repository"
 	@echo "  check         - Quick functionality check"
+	@echo "  hermit-status - Show hermit tools status"
 	@echo "  help          - Show this help message"
