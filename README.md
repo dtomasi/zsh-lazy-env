@@ -2,14 +2,14 @@
 
 > **Smart, directory-scoped environment variable management for zsh**
 
-Automatically load the right environment variables and secrets based on your current directory. `zsh-lazy-env` provides directory-scoped variable management with lazy loading, pattern matching, and seamless integration with secret management tools like 1Password.
+Automatically load the right environment variables and secrets based on your current directory. `zsh-lazy-env` provides directory-scoped variable management with lazy loading, pattern matching, and works seamlessly with any command-line tool including secret managers like 1Password CLI, AWS SSM, or HashiCorp Vault.
 
 ## ✨ What makes this special?
 
 - 🎯 **Directory-scoped variables** - Different secrets for different projects, automatically
 - ⚡ **Lazy loading** - Zero startup performance impact
 - 🔄 **Automatic switching** - Variables reload when you `cd` between projects
-- 🔐 **1Password integration** - Seamless secret management
+- 🔐 **Any CLI tool** - Works with 1Password, AWS SSM, Vault, or any command
 - 🔍 **Pattern matching** - Flexible directory structure support
 - 🛡️ **Security first** - Secrets only loaded when needed
 - 🚀 **Unified API** - Simple `lazy_var` function handles all three registration types
@@ -557,10 +557,10 @@ Check out the [examples/config.zsh](examples/config.zsh) file for real-world con
 A: No. Variables are loaded lazily only when first accessed, resulting in zero startup performance impact.
 
 **Q: What if I don't use 1Password?**
-A: The plugin works with any command-line tool. You can use AWS SSM, HashiCorp Vault, macOS Keychain, environment files, or any custom command that outputs a value.
+A: The plugin works with any command-line tool that outputs a value. Popular examples include AWS SSM Parameter Store, HashiCorp Vault, Azure Key Vault, Google Secret Manager, macOS Keychain, or even simple environment files and custom scripts.
 
 **Q: Can I mix different secret sources?**
-A: Yes. Each variable can use a different source. For example, use 1Password for API keys, AWS SSM for production secrets, and local commands for development values.
+A: Yes. Each variable can use a different command/source. For example, use 1Password CLI for API keys, AWS SSM for production secrets, local files for development values, and custom scripts for computed values.
 
 **Q: What about Windows/PowerShell?**
 A: Currently zsh-only. The plugin relies on zsh-specific features like hooks and associative arrays.
