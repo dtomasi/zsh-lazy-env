@@ -1,0 +1,35 @@
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+
+# Local configuration and secrets
+.env
+.env.local
+secrets.sh
+config.local.zsh
+
+# Test artifacts
+test-results/
+coverage/
+
+# Backup files
+*.bak
+*.backup
+
+# Local development
+scratch/
+local-tests/

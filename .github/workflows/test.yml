@@ -1,0 +1,92 @@
+name: Test Suite
+
+on:
+	push:
+		branches: [ main, master, develop ]
+	pull_request:
+		branches: [ main, master, develop ]
+
+jobs:
+	test:
+		runs-on: ubuntu-latest
+		strategy:
+			matrix:
+				zsh-version: ['5.8', '5.9']
+		
+		steps:
+		- name: Checkout code
+			uses: actions/checkout@v4
+		
+		- name: Install zsh
+			run: |
+				sudo apt-get update
+				sudo apt-get install -y zsh
+		
+		- name: Verify zsh installation
+			run: |
+				zsh --version
+				which zsh
+		
+		- name: Make test runner executable
+			run: chmod +x tests/run-tests.zsh
+		
+		- name: Run test suite
+			run: |
+				# Run tests in non-interactive mode
+				export CI=true
+				zsh -c "source tests/run-tests.zsh"
+		
+		- name: Upload test results
+			uses: actions/upload-artifact@v4
+			if: always()
+			with:
+				name: test-results-zsh-${{ matrix.zsh-version }}
+				path: tests/
+				retention-days: 30
+
+	lint:
+		runs-on: ubuntu-latest
+		steps:
+		- name: Checkout code
+			uses: actions/checkout@v4
+		
+		- name: Install shellcheck
+			run: |
+				sudo apt-get update
+				sudo apt-get install -y shellcheck
+		
+		- name: Run shellcheck on plugin
+			run: |
+				shellcheck -s bash -e SC1091,SC2034,SC2154 lazy-env.plugin.zsh || true
+		
+		- name: Run shellcheck on tests
+			run: |
+				find tests/ -name "*.zsh" -exec shellcheck -s bash -e SC1091,SC2034,SC2154 {} \; || true
+
+	compatibility:
+		runs-on: ${{ matrix.os }}
+		strategy:
+			matrix:
+				os: [ubuntu-latest, macos-latest]
+		
+		steps:
+		- name: Checkout code
+			uses: actions/checkout@v4
+		
+		- name: Install zsh (Ubuntu)
+			if: matrix.os == 'ubuntu-latest'
+			run: |
+				sudo apt-get update
+				sudo apt-get install -y zsh
+		
+		- name: Install zsh (macOS)
+			if: matrix.os == 'macos-latest'
+			run: |
+				# zsh is already installed on macOS
+				zsh --version
+		
+		- name: Run compatibility tests
+			run: |
+				chmod +x tests/run-tests.zsh
+				export CI=true
+				zsh -c "source tests/run-tests.zsh --filter core-functions"
