@@ -9,10 +9,12 @@ Automatically load the right environment variables and secrets based on your cur
 - 🎯 **Directory-scoped variables** - Different secrets for different projects, automatically
 - ⚡ **Lazy loading** - Zero startup performance impact
 - 🔄 **Automatic switching** - Variables reload when you `cd` between projects
+- 🚀 **Command triggers** - Auto-load variables when running specific commands
+- 📁 **Directory triggers** - Auto-load when entering specific directories
 - 🔐 **Any CLI tool** - Works with 1Password, AWS SSM, Vault, or any command
-- 🔍 **Pattern matching** - Flexible directory structure support
+- 🔍 **Pattern matching** - Flexible directory structure and command patterns
 - 🛡️ **Security first** - Secrets only loaded when needed
-- 🚀 **Unified API** - Simple `lazy_var` function handles all three registration types
+- 🛠️ **Unified API** - Single `lazy_var` function with flexible scoping (global/directory/pattern)
 
 ## 🎬 Live Demo
 
