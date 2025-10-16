@@ -35,22 +35,24 @@ make demo-bash      # Interactive bash script support demo
 
 ### ⚠️ Important: How Variable Loading Works
 
-**Variables are loaded when commands are executed, not when variables are accessed directly.**
+**Variables are loaded ONLY when commands are executed directly in the terminal, not when variables are accessed or when running scripts/subshells.**
 
 ```bash
-# ✅ These trigger variable loading:
+# ✅ These trigger variable loading (direct terminal commands):
 gh repo list                    # Command execution
 docker push myimage            # Command with arguments
-bash deploy.sh                 # Script execution
 cd ~/work/project              # Directory change
 
 # ❌ These do NOT trigger loading:
 echo $API_KEY                  # Direct variable access
 export MY_VAR=$API_KEY         # Variable expansion
 if [[ -n "$API_KEY" ]]; then   # Variable testing
+bash deploy.sh                 # Script execution (runs in subshell)
+./my-script.sh                 # Any script execution
+zsh -c "command"               # Subshell execution
 ```
 
-The plugin hooks into zsh's `preexec` (before command execution) and `chpwd` (directory change) events. It cannot detect when you directly reference a variable like `$API_KEY` in your shell.
+**Important:** The plugin hooks into zsh's `preexec` (before command execution) and `chpwd` (directory change) events. These hooks only work for commands typed directly in your interactive terminal session. Scripts and subshells run in their own environment where the lazy-env hooks are not active.
 
 **Workaround for direct access:**
 ```bash
