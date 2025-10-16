@@ -35,30 +35,32 @@ make demo-bash      # Interactive bash script support demo
 
 ### ⚠️ Important: How Variable Loading Works
 
-**Variables are loaded ONLY when commands are executed directly in the terminal, not when variables are accessed or when running scripts/subshells.**
+**Variables are loaded when commands are typed directly in your terminal, but NOT when the same commands are called from within scripts.**
 
 ```bash
-# ✅ These trigger variable loading (direct terminal commands):
+# ✅ These work when typed directly in your terminal:
 gh repo list                    # Command execution
 docker push myimage            # Command with arguments
+echo $API_KEY                  # Variable access
+export MY_VAR=$API_KEY         # Variable expansion  
+if [[ -n "$API_KEY" ]]; then   # Variable testing
+zsh -c "echo $API_KEY"         # Subshell execution
+ssh server "echo $API_KEY"     # Remote execution
 cd ~/work/project              # Directory change
 
-# ❌ These do NOT trigger loading:
-echo $API_KEY                  # Direct variable access
-export MY_VAR=$API_KEY         # Variable expansion
-if [[ -n "$API_KEY" ]]; then   # Variable testing
-bash deploy.sh                 # Script execution (runs in subshell)
-./my-script.sh                 # Any script execution
-zsh -c "command"               # Subshell execution
+# ❌ These do NOT work (commands called FROM scripts):
+# Inside deploy.sh:
+echo $API_KEY                  # Variable not loaded
+docker push $IMAGE_NAME        # Variable not loaded
 ```
 
-**Important:** The plugin hooks into zsh's `preexec` (before command execution) and `chpwd` (directory change) events. These hooks only work for commands typed directly in your interactive terminal session. Scripts and subshells run in their own environment where the lazy-env hooks are not active.
+**Key Point:** The plugin hooks into zsh's `preexec` (before command execution) and `chpwd` (directory change) events. These hooks trigger when you type commands in your interactive terminal, but not when those same commands are executed from within a script file.
 
-**Workaround for direct access:**
+**Workaround for scripts:**
 ```bash
-# Manually load a variable when needed
+# In your script, manually load variables first
 lazy_load "API_KEY"
-echo $API_KEY  # Now it's available
+echo $API_KEY  # Now it's available in the script
 ```
 
 ## 🚀 Quick Start
