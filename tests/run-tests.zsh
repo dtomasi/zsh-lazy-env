@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
-# 
+#
 # Main Test Runner for zsh-lazy-env
-# 
+#
 # Runs all test suites and provides CI/CD integration
 #
 
@@ -23,6 +23,7 @@ TEST_FILES=(
 	"$SCRIPT_DIR/test-core-functions.zsh"
 	"$SCRIPT_DIR/test-directory-scoped.zsh"
 	"$SCRIPT_DIR/test-listing-functions.zsh"
+	"$SCRIPT_DIR/test-bash-support.zsh"
 	"$SCRIPT_DIR/test-error-handling.zsh"
 )
 
@@ -116,27 +117,27 @@ parse_args() {
 run_test_file() {
 	local test_file="$1"
 	local test_name=$(basename "$test_file" .zsh)
-	
+
 	if [[ -n "$FILTER" && "$test_name" != *"$FILTER"* ]]; then
 		if [[ "$VERBOSE" == "true" ]]; then
 			echo "${COLORS[YELLOW]}⏭️  Skipping $test_name (doesn't match filter)${COLORS[NC]}"
 		fi
 		return 0
 	fi
-	
+
 	if [[ ! -f "$test_file" ]]; then
 		echo "${COLORS[RED]}❌ Test file not found: $test_file${COLORS[NC]}" >&2
 		return 1
 	fi
-	
+
 	if [[ "$VERBOSE" == "true" ]]; then
 		echo "${COLORS[BLUE]}🔄 Running $test_name...${COLORS[NC]}"
 	fi
-	
+
 	# Run test in a subshell to isolate state
 	local output
 	local exit_code
-	
+
 	if [[ "$VERBOSE" == "true" ]]; then
 		# Show output in verbose mode
 		(
@@ -150,7 +151,7 @@ run_test_file() {
 		)
 		exit_code=$?
 	fi
-	
+
 	# Parse results from the output
 	if [[ $exit_code -eq 0 ]]; then
 		if [[ "$VERBOSE" == "true" ]]; then
@@ -163,7 +164,7 @@ run_test_file() {
 			echo "$output"
 		fi
 	fi
-	
+
 	return $exit_code
 }
 
@@ -171,7 +172,7 @@ run_test_file() {
 run_tests_sequential() {
 	local suite_count=0
 	local suite_passed=0
-	
+
 	for test_file in "${TEST_FILES[@]}"; do
 		if [[ -n "$test_file" ]]; then  # Skip empty entries from array filtering
 			suite_count=$((suite_count + 1))
@@ -180,7 +181,7 @@ run_tests_sequential() {
 			fi
 		fi
 	done
-	
+
 	TOTAL_SUITES=$suite_count
 	# Note: Individual test counts would need to be extracted from test output
 	# For now, we're tracking at the suite level
@@ -190,9 +191,9 @@ run_tests_sequential() {
 run_tests_parallel() {
 	local pids=()
 	local results=()
-	
+
 	echo "${COLORS[YELLOW]}⚡ Running tests in parallel (experimental)...${COLORS[NC]}"
-	
+
 	# Start all test files in background
 	for test_file in "${TEST_FILES[@]}"; do
 		if [[ -n "$test_file" ]]; then
@@ -203,16 +204,16 @@ run_tests_parallel() {
 			pids+=($!)
 		fi
 	done
-	
+
 	# Wait for all tests to complete
 	for pid in "${pids[@]}"; do
 		wait $pid
 	done
-	
+
 	# Collect results
 	local suite_count=0
 	local suite_passed=0
-	
+
 	for test_file in "${TEST_FILES[@]}"; do
 		if [[ -n "$test_file" ]]; then
 			local result_file="/tmp/test-result-$$.$(basename "$test_file")"
@@ -226,7 +227,7 @@ run_tests_parallel() {
 			fi
 		fi
 	done
-	
+
 	TOTAL_SUITES=$suite_count
 }
 
@@ -236,7 +237,7 @@ check_prerequisites() {
 		echo "${COLORS[RED]}❌ Plugin file not found: $PLUGIN_DIR/lazy-env.plugin.zsh${COLORS[NC]}" >&2
 		exit 2
 	fi
-	
+
 	# Check for required commands
 	for cmd in mkdir rm grep; do
 		if ! command -v "$cmd" >/dev/null 2>&1; then
@@ -249,13 +250,13 @@ check_prerequisites() {
 # Main execution
 main() {
 	parse_args "$@"
-	
+
 	# Initialize test framework
 	test_init
-	
+
 	echo "${COLORS[BLUE]}🚀 Starting zsh-lazy-env test suite${COLORS[NC]}"
 	echo
-	
+
 	# Show configuration
 	if [[ "$VERBOSE" == "true" ]]; then
 		echo "${COLORS[CYAN]}Configuration:${COLORS[NC]}"
@@ -266,37 +267,37 @@ main() {
 		echo "  Test Files: ${#TEST_FILES[@]}"
 		echo
 	fi
-	
+
 	# Check prerequisites
 	check_prerequisites
-	
+
 	# Record start time
 	local start_time=$(date +%s)
-	
+
 	# Run tests
 	if [[ "$PARALLEL_TESTS" == "true" ]]; then
 		run_tests_parallel
 	else
 		run_tests_sequential
 	fi
-	
+
 	# Calculate execution time
 	local end_time=$(date +%s)
 	local duration=$((end_time - start_time))
-	
+
 	# Show final results
 	echo
 	echo "${COLORS[CYAN]}$(printf '═%.0s' {1..80})${COLORS[NC]}"
 	echo "${COLORS[BOLD]}📊 Final Test Results${COLORS[NC]}"
 	echo "${COLORS[CYAN]}$(printf '═%.0s' {1..80})${COLORS[NC]}"
 	echo
-	
+
 	echo "${COLORS[BLUE]}Test Suites:    ${COLORS[WHITE]}$TOTAL_SUITES${COLORS[NC]}"
 	echo "${COLORS[GREEN]}Passed Suites:  ${COLORS[WHITE]}$(($TOTAL_SUITES - ${#FAILED_SUITES[@]}))${COLORS[NC]}"
 	echo "${COLORS[RED]}Failed Suites:  ${COLORS[WHITE]}${#FAILED_SUITES[@]}${COLORS[NC]}"
 	echo "${COLORS[YELLOW]}Duration:       ${COLORS[WHITE]}${duration}s${COLORS[NC]}"
 	echo
-	
+
 	# Show failed suites if any
 	if [[ ${#FAILED_SUITES[@]} -gt 0 ]]; then
 		echo "${COLORS[RED]}${COLORS[BOLD]}❌ Failed Test Suites:${COLORS[NC]}"
@@ -306,7 +307,7 @@ main() {
 		done
 		echo
 	fi
-	
+
 	# Final status
 	if [[ ${#FAILED_SUITES[@]} -eq 0 ]]; then
 		echo "${COLORS[GREEN]}${COLORS[BOLD]}🎉 All test suites passed!${COLORS[NC]}"
@@ -315,6 +316,7 @@ main() {
 		echo "${COLORS[GREEN]}  • Core Functions: Variable registration, command mapping, loading${COLORS[NC]}"
 		echo "${COLORS[GREEN]}  • Directory Scoping: Priority resolution, pattern matching${COLORS[NC]}"
 		echo "${COLORS[GREEN]}  • Listing Functions: Output formatting, table structure${COLORS[NC]}"
+		echo "${COLORS[GREEN]}  • Bash Support: Script-specific loading, pattern matching, wrapper function${COLORS[NC]}"
 		echo "${COLORS[GREEN]}  • Error Handling: Edge cases, malformed input, failures${COLORS[NC]}"
 		if [[ "$SKIP_INTEGRATION" != "true" ]]; then
 			echo "${COLORS[GREEN]}  • Integration: Real-world workflows, complex scenarios${COLORS[NC]}"

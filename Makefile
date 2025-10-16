@@ -53,12 +53,20 @@ lint:
 # Run interactive demo
 demo:
 	@echo "Starting interactive demo..."
-	@zsh demo.zsh
+	@zsh examples/demo-core.zsh
 
-# Run manual command loading test
-test-manual:
-	@echo "Running manual command loading test..."
-	@zsh examples/manual-test-command-loading.zsh
+
+
+# Run demo in autoplay mode (for asciinema recordings)
+demo-auto:
+	@echo "Starting autoplay demo (3s delays)..."
+	@AUTOPLAY=true zsh examples/demo-core.zsh
+
+# Run demo in asciinema-friendly mode (ASCII icons)
+demo-asciinema:
+	@echo "Starting asciinema-friendly demo..."
+	@ASCIINEMA_MODE=true AUTOPLAY=true zsh examples/demo-core.zsh
+
 
 # Clean test artifacts
 clean:
@@ -104,9 +112,9 @@ help:
 	@echo "  test-core     - Run core functionality tests only"
 	@echo "  test-integration - Run integration tests only"
 	@echo "  test-all      - Run all test categories individually"
-	@echo "  test-manual   - Run manual command loading test"
 	@echo "  lint          - Run shellcheck linting (uses hermit)"
 	@echo "  demo          - Run interactive demo"
+	@echo "  demo-auto     - Run demo in autoplay mode (for recordings)"
 	@echo "  clean         - Clean test artifacts"
 	@echo "  install       - Install plugin locally for development"
 	@echo "  install-from-git - Install from GitHub repository"

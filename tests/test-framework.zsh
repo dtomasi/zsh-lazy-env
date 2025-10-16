@@ -1,7 +1,7 @@
 #!/usr/bin/env zsh
-# 
+#
 # Test Framework for zsh-lazy-env
-# 
+#
 # Simple but effective testing framework for zsh scripts
 # Provides assertion functions, test isolation, and reporting
 #
@@ -36,7 +36,7 @@ test_init() {
 	FAILED_COUNT=0
 	FAILED_TESTS=()
 	TEST_OUTPUT=""
-	
+
 	echo "${COLORS[BLUE]}${COLORS[BOLD]}╔══════════════════════════════════════════════════════════════════════════════════════╗${COLORS[NC]}"
 	echo "${COLORS[BLUE]}${COLORS[BOLD]}║${COLORS[WHITE]} zsh-lazy-env Test Suite${COLORS[NC]}${COLORS[BLUE]}$(printf '%*s' 57 '')║${COLORS[NC]}"
 	echo "${COLORS[BLUE]}${COLORS[BOLD]}╚══════════════════════════════════════════════════════════════════════════════════════╝${COLORS[NC]}"
@@ -59,12 +59,19 @@ test_start() {
 	printf "${COLORS[BLUE]}  ▶ %-60s" "$test_name"
 }
 
+# End a test (placeholder - results are shown by test_pass/test_fail)
+test_end() {
+	# This function exists for consistency with test structure
+	# The actual pass/fail status is already shown by test_pass/test_fail
+	echo ""
+}
+
 # Test assertions
 assert_equals() {
 	local expected="$1"
 	local actual="$2"
 	local message="${3:-}"
-	
+
 	if [[ "$expected" == "$actual" ]]; then
 		test_pass
 	else
@@ -76,7 +83,7 @@ assert_not_equals() {
 	local expected="$1"
 	local actual="$2"
 	local message="${3:-}"
-	
+
 	if [[ "$expected" != "$actual" ]]; then
 		test_pass
 	else
@@ -88,7 +95,7 @@ assert_contains() {
 	local haystack="$1"
 	local needle="$2"
 	local message="${3:-}"
-	
+
 	if [[ "$haystack" == *"$needle"* ]]; then
 		test_pass
 	else
@@ -100,7 +107,7 @@ assert_not_contains() {
 	local haystack="$1"
 	local needle="$2"
 	local message="${3:-}"
-	
+
 	if [[ "$haystack" != *"$needle"* ]]; then
 		test_pass
 	else
@@ -112,7 +119,7 @@ assert_matches() {
 	local string="$1"
 	local pattern="$2"
 	local message="${3:-}"
-	
+
 	if [[ "$string" =~ $pattern ]]; then
 		test_pass
 	else
@@ -123,7 +130,7 @@ assert_matches() {
 assert_true() {
 	local condition="$1"
 	local message="${2:-}"
-	
+
 	if [[ "$condition" == "true" ]] || [[ "$condition" == "0" ]] || [[ -n "$condition" && "$condition" != "false" ]]; then
 		test_pass
 	else
@@ -134,7 +141,7 @@ assert_true() {
 assert_false() {
 	local condition="$1"
 	local message="${2:-}"
-	
+
 	if [[ "$condition" == "false" ]] || [[ "$condition" == "1" ]] || [[ -z "$condition" ]]; then
 		test_pass
 	else
@@ -145,7 +152,7 @@ assert_false() {
 assert_command_success() {
 	local command="$1"
 	local message="${2:-}"
-	
+
 	if eval "$command" >/dev/null 2>&1; then
 		test_pass
 	else
@@ -156,7 +163,7 @@ assert_command_success() {
 assert_command_fails() {
 	local command="$1"
 	local message="${2:-}"
-	
+
 	if ! eval "$command" >/dev/null 2>&1; then
 		test_pass
 	else
@@ -167,7 +174,7 @@ assert_command_fails() {
 assert_var_set() {
 	local var_name="$1"
 	local message="${2:-}"
-	
+
 	if [[ -n "${(P)var_name}" ]]; then
 		test_pass
 	else
@@ -178,7 +185,7 @@ assert_var_set() {
 assert_var_unset() {
 	local var_name="$1"
 	local message="${2:-}"
-	
+
 	if [[ -z "${(P)var_name}" ]]; then
 		test_pass
 	else
@@ -220,7 +227,7 @@ test_cleanup() {
 	unset DIR_PATTERN_VARS
 	unset DIR_PATTERN_KEYS
 	unset DIRECTORY_VARS
-	
+
 	# Declare associative arrays again
 	typeset -gA LAZY_VARS
 	typeset -gA LOADED_VARS
@@ -231,11 +238,11 @@ test_cleanup() {
 	typeset -gA DIR_PATTERN_VARS
 	typeset -ga DIR_PATTERN_KEYS
 	typeset -gA DIRECTORY_VARS
-	
+
 	# Clean up test variables
 	unset TEST_VAR_1 TEST_VAR_2 TEST_VAR_3
 	unset API_KEY DATABASE_URL TF_TOKEN CLIENT_SECRET
-	
+
 	# Reset PWD to safe location
 	cd /tmp 2>/dev/null || true
 }
@@ -243,11 +250,11 @@ test_cleanup() {
 # Setup isolated test environment
 test_setup() {
 	test_cleanup
-	
+
 	# Create temporary test directory structure
 	local test_dir="/tmp/lazy-env-test-$$"
 	mkdir -p "$test_dir"/{project-a,project-b,terraform/{prod,staging},client-{acme,globex}}
-	
+
 	# Export for tests to use
 	export LAZY_ENV_TEST_DIR="$test_dir"
 }
@@ -259,20 +266,20 @@ test_results() {
 	echo "${COLORS[BOLD]}📊 Test Results Summary${COLORS[NC]}"
 	echo "${COLORS[CYAN]}$(printf '─%.0s' {1..80})${COLORS[NC]}"
 	echo
-	
+
 	local total_tests=$TEST_COUNT
 	local success_rate=0
-	
+
 	if [[ $total_tests -gt 0 ]]; then
 		success_rate=$((PASSED_COUNT * 100 / total_tests))
 	fi
-	
+
 	echo "${COLORS[BLUE]}Total Tests:    ${COLORS[WHITE]}$total_tests${COLORS[NC]}"
 	echo "${COLORS[GREEN]}Passed:         ${COLORS[WHITE]}$PASSED_COUNT${COLORS[NC]}"
 	echo "${COLORS[RED]}Failed:         ${COLORS[WHITE]}$FAILED_COUNT${COLORS[NC]}"
 	echo "${COLORS[YELLOW]}Success Rate:   ${COLORS[WHITE]}$success_rate%${COLORS[NC]}"
 	echo
-	
+
 	# Show failed tests if any
 	if [[ $FAILED_COUNT -gt 0 ]]; then
 		echo "${COLORS[RED]}${COLORS[BOLD]}❌ Failed Tests:${COLORS[NC]}"
@@ -282,7 +289,7 @@ test_results() {
 		done
 		echo
 	fi
-	
+
 	# Final status
 	if [[ $FAILED_COUNT -eq 0 ]]; then
 		echo "${COLORS[GREEN]}${COLORS[BOLD]}🎉 All tests passed!${COLORS[NC]}"
@@ -299,7 +306,7 @@ test_teardown() {
 	if [[ -n "$LAZY_ENV_TEST_DIR" && -d "$LAZY_ENV_TEST_DIR" ]]; then
 		rm -rf "$LAZY_ENV_TEST_DIR"
 	fi
-	
+
 	test_cleanup
 }
 

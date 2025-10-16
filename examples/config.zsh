@@ -115,14 +115,14 @@ lazy_var "DB_PASSWORD" "op read 'op://staging/database/password'" "pattern:.*/(s
 # Version control
 lazy_command "gh" "GITHUB_TOKEN"
 lazy_command "gitlab" "GITLAB_TOKEN"
-lazy_command_pattern "^git (push|pull)" "GITHUB_TOKEN"
+lazy_command "pattern:^git (push|pull)" "GITHUB_TOKEN"
 
 # Infrastructure as Code
 lazy_command "terraform" "TF_TOKEN,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY"
 lazy_command "pulumi" "PULUMI_ACCESS_TOKEN,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY"
 
 # Containers
-lazy_command_pattern "^docker (push|pull)" "DOCKER_HUB_TOKEN"
+lazy_command "pattern:^docker (push|pull)" "DOCKER_HUB_TOKEN"
 lazy_command "kubectl" "KUBE_TOKEN,KUBE_CONFIG"
 
 # Cloud CLIs
@@ -144,9 +144,28 @@ lazy_directory "$HOME/work/myapp/production" "DATABASE_URL,REDIS_URL,API_SECRET"
 lazy_directory "$HOME/work/myapp/staging" "DATABASE_URL,REDIS_URL,API_SECRET"
 
 # Pattern-based directory triggers
-lazy_directory_pattern ".*/terraform/.*" "TF_TOKEN,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY"
-lazy_directory_pattern ".*/k8s/.*" "KUBE_TOKEN,KUBE_CONFIG"
-lazy_directory_pattern ".*/projects/.*" "API_KEY"
+lazy_directory "pattern:.*/terraform/.*" "TF_TOKEN,AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY"
+lazy_directory "pattern:.*/k8s/.*" "KUBE_TOKEN,KUBE_CONFIG"
+lazy_directory "pattern:.*/projects/.*" "API_KEY"
+
+# ============================================================================
+# Bash Script Support
+# ============================================================================
+# Load variables automatically when bash scripts are executed from zsh
+
+# Specific script paths
+lazy_bash_script "$HOME/scripts/deploy.sh" "AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,DEPLOY_TOKEN"
+lazy_bash_script "$HOME/scripts/backup.sh" "AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY,S3_BUCKET"
+lazy_bash_script "$HOME/scripts/migrate-db.sh" "DATABASE_URL,DB_PASSWORD"
+
+# Pattern-based script matching
+lazy_bash_script "pattern:.*deploy.*\.sh" "DEPLOY_TOKEN,AWS_ACCESS_KEY_ID"
+lazy_bash_script "pattern:.*/scripts/.*\.sh" "SCRIPT_LOG_LEVEL"
+lazy_bash_script "pattern:.*/ci/.*\.sh" "CI_TOKEN,GITHUB_TOKEN"
+
+# Environment-specific scripts
+lazy_bash_script "pattern:.*prod.*\.sh" "PROD_API_KEY,PROD_DATABASE_URL"
+lazy_bash_script "pattern:.*staging.*\.sh" "STAGING_API_KEY,STAGING_DATABASE_URL"
 
 # ============================================================================
 # Alternative Secret Sources
@@ -239,3 +258,25 @@ alias tfa='terraform apply'
 alias k='kubectl'
 alias kgp='kubectl get pods'
 alias kgs='kubectl get services'
+
+# ============================================================================
+# Bash Script Examples
+# ============================================================================
+
+# Example bash scripts that will automatically have variables loaded
+# These scripts will inherit environment variables from zsh-lazy-env
+
+# Example: Deploy script that needs AWS credentials
+# ~/scripts/deploy.sh:
+# #!/bin/bash
+# echo "Deploying with AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:0:10}..."
+# aws s3 sync ./build s3://my-bucket/
+
+# Example: Database migration script
+# ~/scripts/migrate-db.sh:
+# #!/bin/bash
+# echo "Connecting to: ${DATABASE_URL:0:20}..."
+# psql "$DATABASE_URL" -f migrations/latest.sql
+
+# Configuration for bash script support
+# export LAZY_ENV_BASH_SUPPORT=true  # (default: true)

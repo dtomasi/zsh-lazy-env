@@ -8,7 +8,7 @@ Automatically load the right environment variables and secrets based on your cur
 
 - 🎯 **Directory-scoped variables** - Different secrets for different projects, automatically
 - ⚡ **Lazy loading** - Zero startup performance impact
-- 🔄 **Automatic switching** - Variables reload when you `cd` between projects  
+- 🔄 **Automatic switching** - Variables reload when you `cd` between projects
 - 🔐 **1Password integration** - Seamless secret management
 - 🔍 **Pattern matching** - Flexible directory structure support
 - 🛡️ **Security first** - Secrets only loaded when needed
@@ -16,11 +16,45 @@ Automatically load the right environment variables and secrets based on your cur
 
 ## 🎬 Live Demo
 
-Want to see it in action? Run our interactive demo:
+### Watch it in action:
 
+<div align="center">
+  <img src="./demo-core.gif" alt="zsh-lazy-env Demo - Shows lazy loading of environment variables based on directory context" width="800">
+</div>
+
+*Demo shows: variable registration with `registered` status, lazy loading triggered by command execution, status changes to `loaded`/`failed`, and automatic directory-based variable switching*
+
+### Or run it yourself:
 ```bash
 cd zsh-lazy-env
-zsh demo.zsh
+make demo           # Interactive core features demo
+make demo-bash      # Interactive bash script support demo
+```
+
+### ⚠️ Important: How Variable Loading Works
+
+**Variables are loaded when commands are executed, not when variables are accessed directly.**
+
+```bash
+# ✅ These trigger variable loading:
+gh repo list                    # Command execution
+docker push myimage            # Command with arguments
+bash deploy.sh                 # Script execution
+cd ~/work/project              # Directory change
+
+# ❌ These do NOT trigger loading:
+echo $API_KEY                  # Direct variable access
+export MY_VAR=$API_KEY         # Variable expansion
+if [[ -n "$API_KEY" ]]; then   # Variable testing
+```
+
+The plugin hooks into zsh's `preexec` (before command execution) and `chpwd` (directory change) events. It cannot detect when you directly reference a variable like `$API_KEY` in your shell.
+
+**Workaround for direct access:**
+```bash
+# Manually load a variable when needed
+lazy_load "API_KEY"
+echo $API_KEY  # Now it's available
 ```
 
 ## 🚀 Quick Start
@@ -64,7 +98,7 @@ lazy_var "API_KEY" "op read 'op://personal/api-key/password'"
 lazy_var "API_KEY" "op read 'op://acme-vault/api-key/password'" "~/work/client-acme"
 lazy_var "API_KEY" "op read 'op://globex-vault/api-key/password'" "~/work/client-globex"
 
-# Environment-specific database URLs  
+# Environment-specific database URLs
 lazy_var "DATABASE_URL" "op read 'op://prod/database/url'" "~/work/myapp/production"
 lazy_var "DATABASE_URL" "op read 'op://staging/database/url'" "~/work/myapp/staging"
 ```
@@ -103,7 +137,7 @@ $ cd ~/work/acme-corp
 $ echo $API_KEY
 acme-secret-key-xyz123
 
-$ cd ~/work/globex-inc  
+$ cd ~/work/globex-inc
 $ echo $API_KEY
 globex-premium-token-abc789
 
@@ -138,6 +172,17 @@ Variables automatically switch based on your current directory, eliminating the 
 | `lazy_test_var "VAR" [path]` | Test command resolution priority |
 | `lazy_test_command "command"` | Test what variables a command would load |
 | `lazy_test_directory "path"` | Test what variables a directory would load |
+| `_load_variables_for_bash_script "script"` | Manually load variables for a bash script |
+
+**Bash Script Testing:**
+```bash
+# Test what variables would load for a script
+_load_variables_for_bash_script "/path/to/deploy.sh"
+
+# Run interactive demos
+make demo        # Main features demo
+make demo-bash   # Bash support demo
+```
 
 ## 🔧 Advanced Configuration
 
@@ -206,7 +251,7 @@ lazy_var "AWS_DEFAULT_REGION" \
 ```
 
 **How it works:**
-1. `lazy_setup_env` loads all `.sh` files from the config directory
+1. `lazy_load_configs` loads all `.sh` files from the config directory
 2. Each file registers variables with `lazy_var` and their scoping rules
 3. Variables are loaded on-demand based on the patterns you defined
 4. Directory structure is purely organizational - define scoping in the files themselves
@@ -239,7 +284,7 @@ Load variables automatically when certain commands are used:
 lazy_command "gh" "GITHUB_TOKEN"
 
 # Load Docker Hub token for push/pull
-lazy_command_pattern "^docker (push|pull)" "DOCKER_HUB_TOKEN"
+lazy_command "pattern:^docker (push|pull)" "DOCKER_HUB_TOKEN"
 
 # Load Terraform token for any terraform command
 lazy_command "terraform" "TF_TOKEN"
@@ -254,7 +299,88 @@ Load variables automatically when entering directories:
 lazy_directory "~/work/project-a" "PROJECT_A_API_KEY,PROJECT_A_SECRET"
 
 # Pattern-based directory triggers
-lazy_directory_pattern ".*/terraform/.*" "TF_TOKEN,AWS_SECRET_ACCESS_KEY"
+lazy_directory "pattern:.*/terraform/.*" "TF_TOKEN,AWS_SECRET_ACCESS_KEY"
+```
+
+### Bash Script Support
+
+Automatically load environment variables when executing bash scripts from zsh:
+
+```bash
+# Load AWS credentials when running deployment scripts
+lazy_bash_script "$HOME/scripts/deploy-production.sh" "AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY"
+
+# Pattern-based script matching - all scripts in deploy/ directory
+lazy_bash_script "pattern:.*/deploy/.*\.sh" "DEPLOY_TOKEN,MONITORING_API_KEY"
+
+# Multiple variables for specific scripts
+lazy_bash_script "$HOME/scripts/test-runner.sh" "TEST_DATABASE_URL,TEST_API_KEY"
+```
+
+### How Bash Support Works
+
+When you execute `bash script.sh` from zsh, the plugin:
+
+1. **Checks if bash support is enabled** (`LAZY_ENV_BASH_SUPPORT=true`)
+2. **Normalizes the script path** (handles symlinks like `/tmp` → `/private/tmp`)
+3. **Matches against registered scripts** (exact paths first, then patterns)
+4. **Loads the specified variables** using your registered `lazy_var` commands
+5. **Exports variables to the bash subprocess**
+6. **Executes the original bash command**
+
+### Configuration
+
+```bash
+# Enable bash support (default)
+export LAZY_ENV_BASH_SUPPORT="true"
+
+# Disable bash support
+export LAZY_ENV_BASH_SUPPORT="false"
+```
+
+### Advanced Examples
+
+**DevOps deployment pipeline:**
+```bash
+# Setup deployment credentials
+lazy_var "AWS_ACCESS_KEY_ID" "aws sts assume-role --output text --query Credentials.AccessKeyId"
+lazy_var "KUBECTL_TOKEN" "op read op://k8s/prod-token/password"
+
+# Configure script mappings
+lazy_bash_script "pattern:.*/deploy/.*\.sh" "AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY"
+lazy_bash_script "pattern:.*k8s.*\.sh" "KUBECTL_TOKEN"
+lazy_bash_script "$HOME/scripts/full-deploy.sh" "AWS_ACCESS_KEY_ID,KUBECTL_TOKEN"
+
+# Usage - credentials load automatically
+bash ~/deploy/app-deployment.sh        # Gets AWS credentials
+bash ~/scripts/k8s-update.sh          # Gets kubectl token
+bash ~/scripts/full-deploy.sh         # Gets both
+```
+
+**Client-specific scripts:**
+```bash
+# Client A credentials
+lazy_var "CLIENT_A_API_KEY" "op read op://client-a/api/key"
+lazy_var "CLIENT_B_API_KEY" "op read op://client-b/api/key"
+
+# Script mappings by client
+lazy_bash_script "pattern:.*/client-a/.*\.sh" "CLIENT_A_API_KEY"
+lazy_bash_script "pattern:.*/client-b/.*\.sh" "CLIENT_B_API_KEY"
+
+# Directory structure automatically loads correct credentials:
+# ~/work/client-a/scripts/deploy.sh → Gets Client A credentials
+# ~/work/client-b/scripts/deploy.sh → Gets Client B credentials
+```
+
+**Manual control:**
+```bash
+# Load variables for a script without executing it
+_load_variables_for_bash_script "/path/to/script.sh"
+
+# Test what variables would be loaded
+for script_path in ${(k)BASH_SCRIPT_VARS}; do
+    echo "$script_path → ${BASH_SCRIPT_VARS[$script_path]}"
+done
 ```
 
 ## 🎯 Priority System
@@ -262,13 +388,13 @@ lazy_directory_pattern ".*/terraform/.*" "TF_TOKEN,AWS_SECRET_ACCESS_KEY"
 Variables are resolved with clear priority:
 
 1. **🎯 Exact Directory Match** - `lazy_var "VAR" "command" "/exact/path"`
-2. **🔍 Pattern Directory Match** - `lazy_var "VAR" "command" "pattern:regex"`  
+2. **🔍 Pattern Directory Match** - `lazy_var "VAR" "command" "pattern:regex"`
 3. **🌍 Global Fallback** - `lazy_var "VAR" "command"`
 
 ```bash
 # Setup hierarchy
 lazy_var "API_KEY" "echo global-key"                                      # Priority 3
-lazy_var "API_KEY" "echo pattern-key" "pattern:.*/work/.*"               # Priority 2  
+lazy_var "API_KEY" "echo pattern-key" "pattern:.*/work/.*"               # Priority 2
 lazy_var "API_KEY" "echo exact-key" "/Users/me/work/special"             # Priority 1
 
 # Results:
@@ -291,7 +417,7 @@ lazy_var "API_KEY" "echo exact-key" "/Users/me/work/special"             # Prior
 - **Environment isolation** - Prod/staging secrets automatically separated
 - **Consistent workflows** - Same commands work everywhere
 
-### For Development Teams  
+### For Development Teams
 - **Zero configuration** - New team members get working setup immediately
 - **No .env files** - No more committing secrets or missing .env.example
 - **Cross-platform** - Works on any machine with zsh
@@ -311,7 +437,7 @@ lazy_var "API_KEY" "echo exact-key" "/Users/me/work/special"             # Prior
 API_KEY=secret1
 DATABASE_URL=postgres://...
 
-# project-b/.env  
+# project-b/.env
 API_KEY=secret2
 DATABASE_URL=postgres://...
 ```
@@ -374,17 +500,20 @@ The plugin includes a comprehensive test framework with near 100% coverage:
 The test suite covers:
 
 - ✅ **Core Functions**: Variable registration, command mapping, loading
-- ✅ **Directory Scoping**: Priority resolution, pattern matching  
+- ✅ **Directory Scoping**: Priority resolution, pattern matching
 - ✅ **Listing Functions**: Output formatting, table structure
+- ✅ **Bash Support**: Script-specific loading, pattern matching, wrapper function
 - ✅ **Error Handling**: Edge cases, malformed input, failures
 - ✅ **Integration**: Real-world workflows, complex scenarios
 
 ### CI/CD Integration
 
+**Examples and Demos:**
+- Interactive demos available via `make demo` and `make demo-bash`
+- Example configurations in `examples/` directory
 Automated testing is available for:
 
 - **GitHub Actions**: `.github/workflows/test.yml`
-- **GitLab CI**: `.gitlab-ci.yml`
 
 The CI pipeline runs tests on:
 - Multiple zsh versions (5.8, 5.9)
@@ -424,23 +553,23 @@ Check out the [examples/config.zsh](examples/config.zsh) file for real-world con
 
 ## 🤔 FAQ
 
-**Q: Does this slow down my shell startup?**  
+**Q: Does this slow down my shell startup?**
 A: No. Variables are loaded lazily only when first accessed, resulting in zero startup performance impact.
 
-**Q: What if I don't use 1Password?**  
+**Q: What if I don't use 1Password?**
 A: The plugin works with any command-line tool. You can use AWS SSM, HashiCorp Vault, macOS Keychain, environment files, or any custom command that outputs a value.
 
-**Q: Can I mix different secret sources?**  
+**Q: Can I mix different secret sources?**
 A: Yes. Each variable can use a different source. For example, use 1Password for API keys, AWS SSM for production secrets, and local commands for development values.
 
-**Q: What about Windows/PowerShell?**  
+**Q: What about Windows/PowerShell?**
 A: Currently zsh-only. The plugin relies on zsh-specific features like hooks and associative arrays.
 
-**Q: How do I debug issues?**  
+**Q: How do I debug issues?**
 A: Use the built-in testing functions: `lazy_test_var`, `lazy_test_command`, and `lazy_test_directory` provide detailed information about variable resolution and command detection.
 
-**Q: Is this production-ready?**  
-A: Yes. The plugin includes comprehensive test coverage, CI/CD integration, and has been used in production environments. See `TESTING.md` for details about the test suite.
+**Q: Is this production-ready?**
+A: Yes. The plugin includes comprehensive test coverage, CI/CD integration, and has been used in production environments. The test suite covers all core functionality and edge cases.
 
 ## 🤝 Contributing
 

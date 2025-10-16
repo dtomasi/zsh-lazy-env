@@ -24,6 +24,10 @@ typeset -gA DIR_SCOPED_VARS       # [directory:variable] = command
 typeset -gA DIR_PATTERN_SCOPED_VARS # [pattern:variable] = command
 typeset -ga DIR_SCOPED_PATTERN_KEYS
 
+# Bash script support configuration
+typeset -gA BASH_SCRIPT_VARS       # [script-path:variable] = command
+typeset -g LAZY_ENV_BASH_SUPPORT=${LAZY_ENV_BASH_SUPPORT:-true}
+
 # Function to register a lazy-loaded environment variable
 #
 # Usage: lazy_var VARIABLE_NAME "command to load value" [path_or_pattern]
@@ -77,103 +81,106 @@ lazy_var() {
 	fi
 }
 
-# Function to register a command that should trigger variable loading
+# Function to register a command or pattern that should trigger variable loading
 #
 # Usage: lazy_command "command" "VARIABLE1,VARIABLE2"
+#        lazy_command "pattern:regex_pattern" "VARIABLE1,VARIABLE2"
 #
 # Arguments:
-#   $1 - Command or subcommand (e.g., "gh", "docker push", "terraform plan")
+#   $1 - Command/subcommand or pattern with "pattern:" prefix
 #   $2 - Comma-separated list of variables to load
 #
 # Examples:
 #   lazy_command "gh" "GITHUB_TOKEN"
 #   lazy_command "docker push" "DOCKER_HUB_TOKEN"
 #   lazy_command "terraform" "GITLAB_TOKEN,TF_VAR_gitlab_token"
+#   lazy_command "pattern:^git (push|pull|clone)" "GITHUB_TOKEN"
+#   lazy_command "pattern:^docker (push|pull|login).*" "DOCKER_HUB_TOKEN"
 lazy_command() {
 	local command="$1"
 	local variables="$2"
 
 	if [[ -z "$command" ]] || [[ -z "$variables" ]]; then
 		echo "Usage: lazy_command \"command\" \"VARIABLE1,VARIABLE2\"" >&2
+		echo "       lazy_command \"pattern:regex_pattern\" \"VARIABLE1,VARIABLE2\"" >&2
 		return 1
 	fi
 
-	COMMAND_VARS[$command]="$variables"
-}
-
-# Function to register a regex pattern that should trigger variable loading
-#
-# Usage: lazy_command_pattern "regex_pattern" "VARIABLE1,VARIABLE2"
-#
-# Arguments:
-#   $1 - Regex pattern to match against full command
-#   $2 - Comma-separated list of variables to load
-#
-# Examples:
-#   lazy_command_pattern "^git (push|pull|clone)" "GITHUB_TOKEN"
-#   lazy_command_pattern "^docker (push|pull|login).*" "DOCKER_HUB_TOKEN"
-lazy_command_pattern() {
-	local pattern="$1"
-	local variables="$2"
-
-	if [[ -z "$pattern" ]] || [[ -z "$variables" ]]; then
-		echo "Usage: lazy_command_pattern \"regex_pattern\" \"VARIABLE1,VARIABLE2\"" >&2
-		return 1
+	# Check if this is a pattern (starts with "pattern:")
+	if [[ "$command" == pattern:* ]]; then
+		local pattern="${command#pattern:}"
+		PATTERN_VARS[$pattern]="$variables"
+		PATTERN_KEYS+=("$pattern")
+	else
+		COMMAND_VARS[$command]="$variables"
 	fi
-
-	PATTERN_VARS[$pattern]="$variables"
-	PATTERN_KEYS+=("$pattern")
 }
 
-# Function to register a directory that should trigger variable loading
+# Function to register a directory or pattern that should trigger variable loading
 #
 # Usage: lazy_directory "directory_path" "VARIABLE1,VARIABLE2"
+#        lazy_directory "pattern:regex_pattern" "VARIABLE1,VARIABLE2"
 #
 # Arguments:
-#   $1 - Directory path (exact match, can use ~ for home directory)
+#   $1 - Directory path or pattern with "pattern:" prefix (can use ~ for home directory)
 #   $2 - Comma-separated list of variables to load
 #
 # Examples:
 #   lazy_directory "~/work/project1" "PROJECT1_API_KEY,PROJECT1_SECRET"
 #   lazy_directory "$HOME/work/client-xyz" "CLIENT_XYZ_TOKEN"
+#   lazy_directory "pattern:.*/terraform/.*" "TF_VAR_gitlab_token,AWS_ACCESS_KEY"
+#   lazy_directory "pattern:.*/k8s/.*" "KUBECONFIG_SECRET"
+#   lazy_directory "pattern:.*/project-(dev|staging|prod)" "DEPLOY_KEY"
 lazy_directory() {
 	local directory="$1"
 	local variables="$2"
 
 	if [[ -z "$directory" ]] || [[ -z "$variables" ]]; then
 		echo "Usage: lazy_directory \"directory_path\" \"VARIABLE1,VARIABLE2\"" >&2
+		echo "       lazy_directory \"pattern:regex_pattern\" \"VARIABLE1,VARIABLE2\"" >&2
 		return 1
 	fi
 
-	# Expand tilde if present
-	directory="${directory/#\~/$HOME}"
-
-	DIRECTORY_VARS[$directory]="$variables"
+	# Check if this is a pattern (starts with "pattern:")
+	if [[ "$directory" == pattern:* ]]; then
+		local pattern="${directory#pattern:}"
+		DIR_PATTERN_VARS[$pattern]="$variables"
+		DIR_PATTERN_KEYS+=("$pattern")
+	else
+		# Expand tilde if present
+		directory="${directory/#\~/$HOME}"
+		DIRECTORY_VARS[$directory]="$variables"
+	fi
 }
 
-# Function to register a directory pattern that should trigger variable loading
+# Function to register bash script-specific variables
 #
-# Usage: lazy_directory_pattern "regex_pattern" "VARIABLE1,VARIABLE2"
+# Usage: lazy_bash_script "script_path" "VARIABLE1,VARIABLE2"
 #
 # Arguments:
-#   $1 - Regex pattern to match against current directory path
-#   $2 - Comma-separated list of variables to load
+#   $1 - Path to bash script (exact path or pattern)
+#   $2 - Comma-separated list of variables to load when script runs
 #
 # Examples:
-#   lazy_directory_pattern ".*/terraform/.*" "TF_VAR_gitlab_token,AWS_ACCESS_KEY"
-#   lazy_directory_pattern ".*/k8s/.*" "KUBECONFIG_SECRET"
-#   lazy_directory_pattern ".*/project-(dev|staging|prod)" "DEPLOY_KEY"
-lazy_directory_pattern() {
-	local pattern="$1"
+#   lazy_bash_script "$HOME/scripts/deploy.sh" "AWS_ACCESS_KEY_ID,AWS_SECRET_ACCESS_KEY"
+#   lazy_bash_script "pattern:.*deploy.*\.sh" "DEPLOY_TOKEN"
+lazy_bash_script() {
+	local script_path="$1"
 	local variables="$2"
 
-	if [[ -z "$pattern" ]] || [[ -z "$variables" ]]; then
-		echo "Usage: lazy_directory_pattern \"regex_pattern\" \"VARIABLE1,VARIABLE2\"" >&2
+	if [[ -z "$script_path" ]] || [[ -z "$variables" ]]; then
+		echo "Usage: lazy_bash_script \"script_path\" \"VARIABLE1,VARIABLE2\"" >&2
 		return 1
 	fi
 
-	DIR_PATTERN_VARS[$pattern]="$variables"
-	DIR_PATTERN_KEYS+=("$pattern")
+	# Expand tilde if present and normalize path
+	if [[ "$script_path" != pattern:* ]]; then
+		script_path="${script_path/#\~/$HOME}"
+		# Normalize the path to handle symlinks like /tmp -> /private/tmp on macOS
+		script_path="$(realpath "$script_path" 2>/dev/null || echo "$script_path")"
+	fi
+
+	BASH_SCRIPT_VARS[$script_path]="$variables"
 }
 
 
@@ -217,23 +224,23 @@ _get_var_status() {
 		case "${LOADED_VARS[$var_name]}" in
 			"success") echo "loaded" ;;
 			"failed") echo "failed" ;;
-			*) echo "pending" ;;
+			*) echo "registered" ;;
 		esac
 	else
-		echo "pending"
+		echo "registered"
 	fi
 }
 
 lazy_list_vars() {
 	# Simple 3-column output: name, status, directory
-	printf "%-30s %-10s %s\n" "NAME" "STATUS" "DIRECTORY"
-	printf "%-30s %-10s %s\n" "----" "------" "---------"
+	printf "%-30s %-12s %s\n" "NAME" "STATUS" "DIRECTORY"
+	printf "%-30s %-12s %s\n" "----" "------" "---------"
 
 	# Show global variables
 	local sorted_vars=(${(ok)LAZY_VARS})
 	for var_name in $sorted_vars; do
 		local var_status=$(_get_var_status "$var_name")
-		printf "%-30s %-10s %s\n" "$var_name" "$var_status" "global"
+		printf "%-30s %-12s %s\n" "$var_name" "$var_status" "global"
 	done
 
 	# Show directory-scoped variables
@@ -246,7 +253,7 @@ lazy_list_vars() {
 		var_part="${var_part#\"}"
 		var_part="${var_part%\"}"
 		local var_status=$(_get_var_status "$var_part")
-		printf "%-30s %-10s %s\n" "$var_part" "$var_status" "$dir_part"
+		printf "%-30s %-12s %s\n" "$var_part" "$var_status" "$dir_part"
 	done
 
 	# Show pattern-scoped variables
@@ -259,7 +266,7 @@ lazy_list_vars() {
 		var_part="${var_part#\"}"
 		var_part="${var_part%\"}"
 		local var_status=$(_get_var_status "$var_part")
-		printf "%-30s %-10s %s\n" "$var_part" "$var_status" "pattern:$pattern_part"
+		printf "%-30s %-12s %s\n" "$var_part" "$var_status" "pattern:$pattern_part"
 	done
 }
 
@@ -615,17 +622,79 @@ _lazy_load_variable() {
 }
 
 # chpwd hook function to detect and load lazy variables on directory change
+# Hook into directory changes
 _lazy_env_chpwd() {
-	local current_dir="$PWD"
+	_lazy_env_chpwd_internal "$PWD"
+}
+
+# Function to export all currently loaded variables for bash subshells
+_export_loaded_variables() {
+	for var_name in ${(k)LOADED_VARS}; do
+		if [[ "${LOADED_VARS[$var_name]}" == "success" ]] && [[ -n "${(P)var_name}" ]]; then
+			export $var_name
+		fi
+	done
+}
+
+# Function to load variables for bash script execution
+_load_variables_for_bash_script() {
+	local script_path="$1"
+	local script_dir="$(dirname "$script_path")"
 	local variables_to_load=()
 
-	# 1. Check directory-triggered variable loading (existing functionality)
+	# Normalize script path
+	local normalized_script_path="$(realpath "$script_path" 2>/dev/null || echo "$script_path")"
+
+	# Check exact script path matches (try both original and normalized paths)
+	local script_vars=""
+	if [[ -n "${BASH_SCRIPT_VARS[$script_path]}" ]]; then
+		script_vars="${BASH_SCRIPT_VARS[$script_path]}"
+	elif [[ -n "${BASH_SCRIPT_VARS[$normalized_script_path]}" ]]; then
+		script_vars="${BASH_SCRIPT_VARS[$normalized_script_path]}"
+	fi
+
+	if [[ -n "$script_vars" ]]; then
+		local var_list=(${(@s:,:)script_vars})
+		variables_to_load+=($var_list)
+	fi
+
+	# Check pattern matches (try both original and normalized paths)
+	for pattern_script in ${(k)BASH_SCRIPT_VARS}; do
+		if [[ "$pattern_script" =~ ^pattern: ]]; then
+			local pattern="${pattern_script#pattern:}"
+			if [[ "$script_path" =~ $pattern ]] || [[ "$normalized_script_path" =~ $pattern ]]; then
+				local script_vars="${BASH_SCRIPT_VARS[$pattern_script]}"
+				local var_list=(${(@s:,:)script_vars})
+				variables_to_load+=($var_list)
+			fi
+		fi
+	done
+
+	# Also load directory-specific variables for the script's directory
+	_lazy_env_chpwd_internal "$script_dir"
+
+	# Load script-specific variables
+	local unique_vars=($(printf '%s\n' "${variables_to_load[@]}" | sort -u))
+	for var_name in $unique_vars; do
+		_lazy_load_variable "$var_name" "$script_dir"
+	done
+
+	# Export all loaded variables for the bash subshell
+	_export_loaded_variables
+}
+
+# Internal chpwd function that can be called with a custom directory
+_lazy_env_chpwd_internal() {
+	local target_dir="${1:-$PWD}"
+	local variables_to_load=()
+
+	# 1. Check directory-triggered variable loading
 	# Check exact directory matches
-	if [[ -n "${DIRECTORY_VARS[$current_dir]}" ]]; then
-		local dir_vars="${DIRECTORY_VARS[$current_dir]}"
+	if [[ -n "${DIRECTORY_VARS[$target_dir]}" ]]; then
+		local dir_vars="${DIRECTORY_VARS[$target_dir]}"
 		local var_list=(${(@s:,:)dir_vars})
 		for var in $var_list; do
-			if [[ "${LOADED_VARS[$var]}" != "success" ]] && [[ -n "$(_get_load_command_for_variable "$var" "$current_dir")" ]]; then
+			if [[ "${LOADED_VARS[$var]}" != "success" ]]; then
 				variables_to_load+=("$var")
 			fi
 		done
@@ -633,11 +702,11 @@ _lazy_env_chpwd() {
 
 	# Check pattern matches for directory-triggered loading
 	for pattern in $DIR_PATTERN_KEYS; do
-		if [[ "$current_dir" =~ $pattern ]]; then
-			local pattern_vars="${DIR_PATTERN_VARS[$pattern]}"
-			local var_list=(${(@s:,:)pattern_vars})
+		if [[ "$target_dir" =~ $pattern ]]; then
+			local dir_vars="${DIR_PATTERN_VARS[$pattern]}"
+			local var_list=(${(@s:,:)dir_vars})
 			for var in $var_list; do
-				if [[ "${LOADED_VARS[$var]}" != "success" ]] && [[ -n "$(_get_load_command_for_variable "$var" "$current_dir")" ]]; then
+				if [[ "${LOADED_VARS[$var]}" != "success" ]]; then
 					variables_to_load+=("$var")
 				fi
 			done
@@ -645,16 +714,15 @@ _lazy_env_chpwd() {
 	done
 
 	# 2. Check for directory-scoped variable overrides that need reloading
-	# Check all currently loaded variables to see if they have directory-specific overrides
 	for var_name in ${(k)LOADED_VARS}; do
 		if [[ "${LOADED_VARS[$var_name]}" == "success" ]]; then
 			# Get the command that would be used in this directory
-			local new_cmd="$(_get_load_command_for_variable "$var_name" "$current_dir" 2>/dev/null)"
+			local new_cmd="$(_get_load_command_for_variable "$var_name" "$target_dir" 2>/dev/null)"
 
 			# If there's a different command available, we need to reload
 			if [[ -n "$new_cmd" ]]; then
 				# Check if this is a directory-scoped override (not global)
-				local exact_key="${current_dir}:${var_name}"
+				local exact_key="${target_dir}:${var_name}"
 				local has_dir_override=false
 
 				# Check exact directory override
@@ -687,10 +755,9 @@ _lazy_env_chpwd() {
 				if [[ "$found_exact" == "true" ]]; then
 					has_dir_override=true
 				else
-					# Check pattern override
+					# Check pattern directory override
 					for pattern in $DIR_SCOPED_PATTERN_KEYS; do
-						if [[ "$current_dir" =~ $pattern ]]; then
-							# Try multiple key formats for pattern matching
+						if [[ "$target_dir" =~ $pattern ]]; then
 							for key in ${(k)DIR_PATTERN_SCOPED_VARS}; do
 								local clean_key="${key//\"/}"
 								local pattern_part="${clean_key%:*}"
@@ -716,7 +783,7 @@ _lazy_env_chpwd() {
 	# Load all variables (remove duplicates first)
 	local unique_vars=($(printf '%s\n' "${variables_to_load[@]}" | sort -u))
 	for var_name in $unique_vars; do
-		_lazy_load_variable "$var_name" "$current_dir"
+		_lazy_load_variable "$var_name" "$target_dir"
 	done
 }
 
@@ -800,7 +867,41 @@ _lazy_env_preexec() {
 		done
 	done
 
-	# 3. Load all variables (remove duplicates first)
+	# 3. Check for bash script execution
+	if [[ "$LAZY_ENV_BASH_SUPPORT" == "true" ]]; then
+		# Detect bash script execution patterns
+		if [[ "$cmd" =~ ^bash\s+.*\.sh ]] || [[ "$cmd" =~ ^[./].*\.sh ]] || [[ "$cmd" =~ \.sh$ ]]; then
+			local script_path=""
+
+			# Extract script path from different command patterns
+			if [[ "$cmd" =~ ^bash\s+(.*\.sh) ]]; then
+				script_path="${match[1]}"
+			elif [[ "$cmd" =~ ^([./].*\.sh) ]]; then
+				script_path="${match[1]}"
+			elif [[ "$cmd" =~ (.*\.sh)$ ]]; then
+				script_path="${match[1]}"
+			fi
+
+			# Convert relative paths to absolute
+			if [[ -n "$script_path" ]]; then
+				if [[ "$script_path" == /* ]]; then
+					# Already absolute
+					:
+				elif [[ "$script_path" == ./* ]]; then
+					script_path="$PWD/${script_path#./}"
+				else
+					script_path="$PWD/$script_path"
+				fi
+
+				# Load variables for this bash script
+				if [[ -f "$script_path" ]]; then
+					_load_variables_for_bash_script "$script_path"
+				fi
+			fi
+		fi
+	fi
+
+	# 4. Load all variables (remove duplicates first)
 	local unique_vars=($(printf '%s\n' "${variables_to_load[@]}" | sort -u))
 	for var_name in $unique_vars; do
 		_lazy_load_variable "$var_name" "$current_dir"
@@ -879,6 +980,21 @@ lazy_load_configs() {
 	fi
 
 	return 0
+}
+
+# Enhanced bash wrapper function for automatic variable loading
+bash() {
+	if [[ "$LAZY_ENV_BASH_SUPPORT" == "true" && "$#" -gt 0 ]]; then
+		local script="$1"
+
+		# Only process if it's a shell script file
+		if [[ -f "$script" && "$script" == *.sh ]]; then
+			_load_variables_for_bash_script "$script"
+		fi
+	fi
+
+	# Execute the original bash command
+	command bash "$@"
 }
 
 # Add our preexec and chpwd hooks
