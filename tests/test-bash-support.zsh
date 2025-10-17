@@ -5,7 +5,7 @@
 source "${0:A:h}/test-framework.zsh"
 
 # Source the plugin
-source "${0:A:h}/../lazy-env.plugin.zsh"
+source "${0:A:h}/../zsh-lazy-env.plugin.zsh"
 
 # Create test directories and files
 setup_bash_test_environment() {
