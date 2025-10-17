@@ -233,8 +233,8 @@ run_tests_parallel() {
 
 # Check prerequisites
 check_prerequisites() {
-	if [[ ! -f "$PLUGIN_DIR/lazy-env.plugin.zsh" ]]; then
-		echo "${COLORS[RED]}❌ Plugin file not found: $PLUGIN_DIR/lazy-env.plugin.zsh${COLORS[NC]}" >&2
+	if [[ ! -f "$PLUGIN_DIR/zsh-lazy-env.plugin.zsh" ]]; then
+		echo "${COLORS[RED]}❌ Plugin file not found: $PLUGIN_DIR/zsh-lazy-env.plugin.zsh${COLORS[NC]}" >&2
 		exit 2
 	fi
 
